@@ -33,7 +33,7 @@ import { Client, getClientStatus, FREQUENCY_OPTIONS } from '../../models/client.
 
         @if (client.last_sent_at) {
           <div class="last-sent">
-            Último envío: {{ formatDate(new Date(client.last_sent_at)) }}
+            Último envío: {{ formatDateStr(client.last_sent_at) }}
           </div>
         } @else {
           <div class="last-sent never">Sin envíos registrados</div>
@@ -212,6 +212,7 @@ export class ClientCardComponent {
     });
   }
 
-  protected readonly new = (d: string) => new Date(d);
-  protected readonly Date = Date;
+  formatDateStr(dateStr: string): string {
+    return this.formatDate(new Date(dateStr));
+  }
 }
