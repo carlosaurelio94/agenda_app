@@ -2,8 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EventFormComponent } from '../event-form/event-form.component';
 import { EventListComponent } from '../event-list/event-list.component';
-import { SupabaseService } from '@services/supabase.service';
-import { AgendaEvent, CreateEventDTO } from '@models/event.model';
+import { SupabaseService } from '../../services/supabase.service';
+import { AgendaEvent, CreateEventDTO } from '../../models/event.model';
 
 const CRON_SECRET = 'mi-agenda-secret-2024';
 

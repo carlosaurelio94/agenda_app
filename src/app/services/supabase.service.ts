@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { environment } from '@env/environment';
-import { AgendaEvent, CreateEventDTO } from '@models/event.model';
+import { environment } from '../../environments/environment';
+import { AgendaEvent, CreateEventDTO } from '../models/event.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService {

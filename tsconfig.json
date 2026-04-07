@@ -18,12 +18,7 @@
     "module": "ES2022",
     "useDefineForClassFields": false,
     "lib": ["ES2022", "dom"],
-    "baseUrl": "./",
-    "paths": {
-      "@env/*": ["src/environments/*"],
-      "@services/*": ["src/app/services/*"],
-      "@models/*": ["src/app/models/*"]
-    }
+    "baseUrl": "./"
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
