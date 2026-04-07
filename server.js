@@ -17,9 +17,12 @@ const CRON_SECRET      = process.env.CRON_SECRET;
 
 // ── WhatsApp ──────────────────────────────────────────────────────────────────
 async function sendWhatsApp(message) {
-  const url = `https://api.callmebot.com/whatsapp.php?phone=${CALLMEBOT_PHONE}&text=${encodeURIComponent(message)}&apikey=${CALLMEBOT_APIKEY}`;
+  const phone = CALLMEBOT_PHONE.startsWith('+') ? CALLMEBOT_PHONE : `+${CALLMEBOT_PHONE}`;
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(message)}&apikey=${CALLMEBOT_APIKEY}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`CallMeBot: ${await res.text()}`);
+  const body = await res.text();
+  console.log(`📱 CallMeBot response [${res.status}]:`, body);
+  if (!res.ok) throw new Error(`CallMeBot: ${body}`);
 }
 
 // ── Lógica de alertas ─────────────────────────────────────────────────────────
@@ -35,28 +38,32 @@ async function checkAlerts() {
   let sent = 0;
 
   for (const client of clients) {
-    if (!client.last_sent_at) continue;
+    let msg = null;
 
-    const lastSent  = new Date(client.last_sent_at);
-    const nextDue   = new Date(lastSent.getTime() + client.frequency_days * 24 * 60 * 60 * 1000);
-    const msUntilDue = nextDue.getTime() - now.getTime();
-    const daysUntilDue = msUntilDue / (1000 * 60 * 60 * 24);
+    // Cliente sin ningún envío registrado → alertar
+    if (!client.last_sent_at) {
+      msg = `⚪ Sin envíos: Nunca enviaste presupuesto a *${client.name}*\nFrecuencia configurada: cada ${client.frequency_days} días`;
+    } else {
+      const lastSent   = new Date(client.last_sent_at);
+      const nextDue    = new Date(lastSent.getTime() + client.frequency_days * 24 * 60 * 60 * 1000);
+      const msUntilDue = nextDue.getTime() - now.getTime();
+      const daysUntilDue = msUntilDue / (1000 * 60 * 60 * 24);
 
-    // Alertar si vence en las próximas 24h o ya venció
-    if (daysUntilDue <= 1) {
       const nextDueStr = nextDue.toLocaleDateString('es-VE', {
         weekday: 'long', day: 'numeric', month: 'long',
         timeZone: 'America/Caracas',
       });
 
-      let msg;
+      // Alertar si vence en las próximas 24h o ya venció
       if (daysUntilDue < 0) {
         const overdue = Math.abs(Math.ceil(daysUntilDue));
-        msg = `🔴 VENCIDO: Enviá el presupuesto a *${client.name}*\nVenció hace ${overdue} día${overdue !== 1 ? 's' : ''} (${nextDueStr})\nFrecuencia: ${client.frequency_days} días`;
-      } else {
-        msg = `🟡 Recordatorio: Enviá el presupuesto a *${client.name}*\nVence: ${nextDueStr}\nFrecuencia: ${client.frequency_days} días`;
+        msg = `🔴 VENCIDO: Enviá el presupuesto a *${client.name}*\nVenció hace ${overdue} día${overdue !== 1 ? 's' : ''} (${nextDueStr})\nFrecuencia: cada ${client.frequency_days} días`;
+      } else if (daysUntilDue <= 1) {
+        msg = `🟡 Recordatorio: Enviá el presupuesto a *${client.name}*\nVence hoy/mañana: ${nextDueStr}\nFrecuencia: cada ${client.frequency_days} días`;
       }
+    }
 
+    if (msg) {
       try {
         await sendWhatsApp(msg);
         await supabase.from('clients').update({ alert_sent: true }).eq('id', client.id);
@@ -65,6 +72,8 @@ async function checkAlerts() {
       } catch (e) {
         console.error(`❌ Error alertando "${client.name}":`, e.message);
       }
+    } else {
+      console.log(`⏭ Sin alerta para "${client.name}" (aún no vence)`);
     }
   }
 
