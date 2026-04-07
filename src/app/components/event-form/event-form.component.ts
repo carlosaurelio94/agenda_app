@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CreateEventDTO } from '@models/event.model';
+import { CreateEventDTO } from '../../models/event.model';
 
 @Component({
   selector: 'app-event-form',

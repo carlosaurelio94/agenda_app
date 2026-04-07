@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AgendaEvent } from '@models/event.model';
+import { AgendaEvent } from '../../models/event.model';
 
 @Component({
   selector: 'app-event-list',
