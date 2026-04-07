@@ -8,7 +8,10 @@ import { RouterOutlet } from '@angular/router';
   template: `
     <div class="app-container">
       <header>
-        <h1>📅 Mi Agenda</h1>
+        <div class="header-inner">
+          <span class="logo">💼</span>
+          <h1>Control de Presupuestos</h1>
+        </div>
       </header>
       <main>
         <router-outlet />
@@ -17,21 +20,28 @@ import { RouterOutlet } from '@angular/router';
   `,
   styles: [`
     .app-container {
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
-      padding: 1rem;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 1rem 1.5rem;
     }
     header {
-      text-align: center;
-      padding: 1.5rem 0;
-      border-bottom: 2px solid #e2e8f0;
+      padding: 1.5rem 0 1rem;
+      border-bottom: 1px solid #1f1f1f;
       margin-bottom: 2rem;
     }
-    header h1 {
-      margin: 0;
-      color: #1e293b;
-      font-size: 1.8rem;
+    .header-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+    .logo {
+      font-size: 1.6rem;
+    }
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      letter-spacing: -0.3px;
     }
   `],
 })

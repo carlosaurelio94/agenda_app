@@ -4,98 +4,101 @@ const cron = require('node-cron');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
 
-const CALLMEBOT_PHONE = process.env.CALLMEBOT_PHONE;
+const CALLMEBOT_PHONE  = process.env.CALLMEBOT_PHONE;
 const CALLMEBOT_APIKEY = process.env.CALLMEBOT_APIKEY;
-const CRON_SECRET = process.env.CRON_SECRET;
+const CRON_SECRET      = process.env.CRON_SECRET;
 
-// ── Función para enviar WhatsApp ──────────────────────────────────────────────
-async function sendWhatsApp(event) {
-  const eventDate = new Date(event.event_date).toLocaleString('es-VE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Caracas',
-  });
-
-  const message = `🔔 *Recordatorio: ${event.title}*\n\n📅 ${eventDate}\n📝 ${event.description || 'Sin descripción'}\n⏰ Alerta configurada ${event.alert_before_minutes} min antes`;
-
+// ── WhatsApp ──────────────────────────────────────────────────────────────────
+async function sendWhatsApp(message) {
   const url = `https://api.callmebot.com/whatsapp.php?phone=${CALLMEBOT_PHONE}&text=${encodeURIComponent(message)}&apikey=${CALLMEBOT_APIKEY}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`CallMeBot error: ${await res.text()}`);
+  if (!res.ok) throw new Error(`CallMeBot: ${await res.text()}`);
 }
 
-// ── Lógica de chequeo de alertas ──────────────────────────────────────────────
+// ── Lógica de alertas ─────────────────────────────────────────────────────────
 async function checkAlerts() {
-  const now = new Date();
-  const { data: events, error } = await supabase
-    .from('events')
+  const { data: clients, error } = await supabase
+    .from('clients')
     .select('*')
-    .eq('alert_sent', false)
-    .gte('event_date', now.toISOString());
+    .eq('alert_sent', false);
 
   if (error) throw error;
 
-  const toAlert = events.filter((event) => {
-    const alertTime = new Date(event.event_date).getTime() - event.alert_before_minutes * 60 * 1000;
-    return now.getTime() >= alertTime;
-  });
-
+  const now = new Date();
   let sent = 0;
-  for (const event of toAlert) {
-    try {
-      await sendWhatsApp(event);
-      await supabase.from('events').update({ alert_sent: true }).eq('id', event.id);
-      sent++;
-      console.log(`✅ Alerta enviada: "${event.title}"`);
-    } catch (e) {
-      console.error(`❌ Error enviando alerta para "${event.title}":`, e.message);
+
+  for (const client of clients) {
+    if (!client.last_sent_at) continue;
+
+    const lastSent  = new Date(client.last_sent_at);
+    const nextDue   = new Date(lastSent.getTime() + client.frequency_days * 24 * 60 * 60 * 1000);
+    const msUntilDue = nextDue.getTime() - now.getTime();
+    const daysUntilDue = msUntilDue / (1000 * 60 * 60 * 24);
+
+    // Alertar si vence en las próximas 24h o ya venció
+    if (daysUntilDue <= 1) {
+      const nextDueStr = nextDue.toLocaleDateString('es-VE', {
+        weekday: 'long', day: 'numeric', month: 'long',
+        timeZone: 'America/Caracas',
+      });
+
+      let msg;
+      if (daysUntilDue < 0) {
+        const overdue = Math.abs(Math.ceil(daysUntilDue));
+        msg = `🔴 VENCIDO: Enviá el presupuesto a *${client.name}*\nVenció hace ${overdue} día${overdue !== 1 ? 's' : ''} (${nextDueStr})\nFrecuencia: ${client.frequency_days} días`;
+      } else {
+        msg = `🟡 Recordatorio: Enviá el presupuesto a *${client.name}*\nVence: ${nextDueStr}\nFrecuencia: ${client.frequency_days} días`;
+      }
+
+      try {
+        await sendWhatsApp(msg);
+        await supabase.from('clients').update({ alert_sent: true }).eq('id', client.id);
+        sent++;
+        console.log(`✅ Alerta enviada: "${client.name}"`);
+      } catch (e) {
+        console.error(`❌ Error alertando "${client.name}":`, e.message);
+      }
     }
   }
 
-  return { checked: events.length, alertsSent: sent, timestamp: now.toISOString() };
+  return { checked: clients.length, alertsSent: sent };
 }
 
-// ── Endpoint manual ───────────────────────────────────────────────────────────
+// ── Endpoint ──────────────────────────────────────────────────────────────────
 app.get('/api/check-alerts', async (req, res) => {
-  const auth = req.headers.authorization;
-  if (auth !== `Bearer ${CRON_SECRET}`) {
+  if (req.headers.authorization !== `Bearer ${CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   try {
     const result = await checkAlerts();
-    res.json(result);
+    res.json({ ...result, timestamp: new Date().toISOString() });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── Cron: lunes a viernes a las 10:00 AM hora Venezuela (UTC-4) ───────────────
-// En local corre según el timezone de tu máquina.
-// Si tu máquina está en UTC-4 (Venezuela), usa: '0 10 * * 1-5'
-// Si tu máquina está en UTC, usa: '0 14 * * 1-5'
+// ── Cron: lunes a viernes 10am Venezuela ─────────────────────────────────────
 cron.schedule('0 10 * * 1-5', async () => {
-  console.log(`🕙 Cron ejecutando a las ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })} (hora Venezuela)`);
+  const hora = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+  console.log(`🕙 Cron ejecutando: ${hora}`);
   try {
-    const result = await checkAlerts();
-    console.log(`📊 Resultado: ${result.alertsSent} alertas enviadas de ${result.checked} revisadas`);
+    const r = await checkAlerts();
+    console.log(`📊 ${r.alertsSent} alertas enviadas de ${r.checked} revisadas`);
   } catch (e) {
     console.error('Error en cron:', e.message);
   }
-}, {
-  timezone: 'America/Caracas'
-});
+}, { timezone: 'America/Caracas' });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor de alertas corriendo en http://localhost:${PORT}`);
-  console.log(`🔔 Cron configurado: lunes a viernes 10:00 AM hora Venezuela`);
-  console.log(`📡 Endpoint manual: GET http://localhost:${PORT}/api/check-alerts`);
+  console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🔔 Cron: lunes a viernes 10:00 AM (Venezuela)`);
+  console.log(`📡 Endpoint: GET http://localhost:${PORT}/api/check-alerts`);
+  console.log(`🌐 Frontend: http://localhost:4200\n`);
 });

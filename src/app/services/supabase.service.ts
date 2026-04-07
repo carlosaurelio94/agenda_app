@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { AgendaEvent, CreateEventDTO } from '../models/event.model';
+import { Client, CreateClientDTO } from '../models/client.model';
 
 @Injectable({ providedIn: 'root' })
 export class SupabaseService {
@@ -11,57 +11,52 @@ export class SupabaseService {
     this.supabase = createClient(environment.supabaseUrl, environment.supabaseKey);
   }
 
-  async getEvents(): Promise<AgendaEvent[]> {
+  async getClients(): Promise<Client[]> {
     const { data, error } = await this.supabase
-      .from('events')
+      .from('clients')
       .select('*')
-      .order('event_date', { ascending: true });
-
+      .order('name', { ascending: true });
     if (error) throw error;
     return data ?? [];
   }
 
-  async getUpcomingEvents(): Promise<AgendaEvent[]> {
-    const now = new Date().toISOString();
+  async createClient(dto: CreateClientDTO): Promise<Client> {
     const { data, error } = await this.supabase
-      .from('events')
-      .select('*')
-      .gte('event_date', now)
-      .order('event_date', { ascending: true });
-
-    if (error) throw error;
-    return data ?? [];
-  }
-
-  async createEvent(event: CreateEventDTO): Promise<AgendaEvent> {
-    const { data, error } = await this.supabase
-      .from('events')
-      .insert({ ...event, alert_sent: false })
+      .from('clients')
+      .insert({ ...dto, last_sent_at: null, alert_sent: false })
       .select()
       .single();
-
     if (error) throw error;
     return data;
   }
 
-  async updateEvent(id: string, event: Partial<AgendaEvent>): Promise<AgendaEvent> {
+  async markAsSent(id: string): Promise<Client> {
     const { data, error } = await this.supabase
-      .from('events')
-      .update(event)
+      .from('clients')
+      .update({ last_sent_at: new Date().toISOString(), alert_sent: false })
       .eq('id', id)
       .select()
       .single();
-
     if (error) throw error;
     return data;
   }
 
-  async deleteEvent(id: string): Promise<void> {
+  async deleteClient(id: string): Promise<void> {
     const { error } = await this.supabase
-      .from('events')
+      .from('clients')
       .delete()
       .eq('id', id);
-
     if (error) throw error;
+  }
+
+  async updateClient(id: string, dto: Partial<CreateClientDTO>): Promise<Client> {
+    const { data, error } = await this.supabase
+      .from('clients')
+      .update(dto)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 }

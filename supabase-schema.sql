@@ -1,27 +1,18 @@
--- Ejecutar esto en Supabase SQL Editor (https://supabase.com/dashboard)
+-- Ejecutar esto en Supabase SQL Editor
 
--- Tabla de eventos
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS clients (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  event_date TIMESTAMPTZ NOT NULL,
-  alert_before_minutes INTEGER NOT NULL DEFAULT 30,
+  name TEXT NOT NULL,
+  frequency_days INTEGER NOT NULL DEFAULT 14,
+  last_sent_at TIMESTAMPTZ,
   alert_sent BOOLEAN NOT NULL DEFAULT FALSE,
+  notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index para búsquedas de alertas pendientes
-CREATE INDEX idx_events_alert_pending
-  ON events (event_date)
-  WHERE alert_sent = FALSE;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 
--- Habilitar RLS (Row Level Security) - opcional si es single user
-ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-
--- Política: permitir todo (single user, sin auth)
-CREATE POLICY "Allow all operations"
-  ON events
-  FOR ALL
+CREATE POLICY "Allow all operations on clients"
+  ON clients FOR ALL
   USING (true)
   WITH CHECK (true);
