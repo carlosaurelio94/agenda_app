@@ -10,7 +10,7 @@ import { RouterOutlet } from '@angular/router';
       <header>
         <div class="header-inner">
           <span class="logo">💼</span>
-          <h1>Control de Presupuestos</h1>
+          <h1>Control de Presupuestoss</h1>
         </div>
       </header>
       <main>
