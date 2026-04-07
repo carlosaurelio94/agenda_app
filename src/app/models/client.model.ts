@@ -24,6 +24,7 @@ export interface ClientStatus {
 }
 
 export const FREQUENCY_OPTIONS = [
+  { label: 'Diario', days: 1 },
   { label: 'Semanal', days: 7 },
   { label: 'Quincenal', days: 14 },
   { label: '3 semanas', days: 21 },
@@ -31,6 +32,7 @@ export const FREQUENCY_OPTIONS = [
   { label: '45 días', days: 45 },
   { label: '2 meses', days: 60 },
   { label: 'Trimestral', days: 90 },
+  { label: 'Personalizado', days: -1 },
 ];
 
 export function getClientStatus(client: Client): ClientStatus {

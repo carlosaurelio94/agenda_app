@@ -26,14 +26,29 @@ import { CreateClientDTO, FREQUENCY_OPTIONS } from '../../models/client.model';
                 autofocus
               />
             </div>
+
             <div class="field field--sm">
               <label>Frecuencia *</label>
-              <select [(ngModel)]="dto.frequency_days" name="frequency_days">
+              <select [(ngModel)]="selectedFrequency" name="frequency_select" (ngModelChange)="onFrequencyChange($event)">
                 @for (opt of frequencyOptions; track opt.days) {
                   <option [value]="opt.days">{{ opt.label }}</option>
                 }
               </select>
             </div>
+
+            @if (isCustom) {
+              <div class="field field--xs">
+                <label>Días *</label>
+                <input
+                  type="number"
+                  [(ngModel)]="customDays"
+                  name="custom_days"
+                  min="1"
+                  max="365"
+                  placeholder="Ej: 10"
+                />
+              </div>
+            }
           </div>
 
           <div class="field">
@@ -45,7 +60,7 @@ import { CreateClientDTO, FREQUENCY_OPTIONS } from '../../models/client.model';
             />
           </div>
 
-          <button type="submit" class="submit-btn" [disabled]="!dto.name.trim()">
+          <button type="submit" class="submit-btn" [disabled]="!isValid()">
             Agregar cliente
           </button>
         </form>
@@ -53,9 +68,7 @@ import { CreateClientDTO, FREQUENCY_OPTIONS } from '../../models/client.model';
     </div>
   `,
   styles: [`
-    .form-wrapper {
-      margin-bottom: 2rem;
-    }
+    .form-wrapper { margin-bottom: 2rem; }
     .toggle-btn {
       background: #1a1a1a;
       border: 1px solid #2a2a2a;
@@ -65,7 +78,6 @@ import { CreateClientDTO, FREQUENCY_OPTIONS } from '../../models/client.model';
       font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.15s;
-      margin-bottom: 0;
     }
     .toggle-btn:hover {
       background: #222;
@@ -86,6 +98,8 @@ import { CreateClientDTO, FREQUENCY_OPTIONS } from '../../models/client.model';
       display: flex;
       gap: 1rem;
       margin-bottom: 0.8rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
     }
     .field {
       display: flex;
@@ -94,6 +108,7 @@ import { CreateClientDTO, FREQUENCY_OPTIONS } from '../../models/client.model';
       margin-bottom: 0.8rem;
     }
     .field--sm { flex: 0 0 160px; }
+    .field--xs { flex: 0 0 90px; }
     label {
       font-size: 0.78rem;
       color: #64748b;
@@ -140,6 +155,8 @@ export class ClientFormComponent {
 
   open = false;
   frequencyOptions = FREQUENCY_OPTIONS;
+  selectedFrequency = 14;
+  customDays = 10;
 
   dto: CreateClientDTO = {
     name: '',
@@ -147,10 +164,33 @@ export class ClientFormComponent {
     notes: '',
   };
 
+  get isCustom(): boolean {
+    return this.selectedFrequency === -1;
+  }
+
+  get effectiveDays(): number {
+    return this.isCustom ? this.customDays : this.selectedFrequency;
+  }
+
+  onFrequencyChange(value: number): void {
+    this.selectedFrequency = Number(value);
+  }
+
+  isValid(): boolean {
+    if (!this.dto.name.trim()) return false;
+    if (this.isCustom && (!this.customDays || this.customDays < 1)) return false;
+    return true;
+  }
+
   onSubmit(): void {
-    if (!this.dto.name.trim()) return;
-    this.clientCreated.emit({ ...this.dto });
+    if (!this.isValid()) return;
+    this.clientCreated.emit({
+      ...this.dto,
+      frequency_days: this.effectiveDays,
+    });
     this.dto = { name: '', frequency_days: 14, notes: '' };
+    this.selectedFrequency = 14;
+    this.customDays = 10;
     this.open = false;
   }
 }
